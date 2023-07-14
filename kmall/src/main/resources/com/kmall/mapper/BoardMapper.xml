@@ -1,0 +1,133 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper
+  PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+  "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.kmall.mapper.BoardMapper">
+
+	<insert id="insert">
+		insert into board_tbl
+			(boa_bno, boa_category, boa_title, mem_id, boa_content)
+		values
+			(SEQ_BOARD_TBL.nextval, #{boa_category}, #{boa_title}, #{mem_id}, #{boa_content})
+	</insert>
+
+
+	<!-- 검색조건 작업 -->
+	<sql id="criteria">
+		<trim prefix="(" suffix=") AND " prefixOverrides="OR"> <!-- prefixOverrides 가 trim태그 sql구문중에 맨 앞에 or가 중복되면 제거 -->
+			<foreach collection="typeArr" item="type">
+				<trim prefix="OR">
+					<choose>
+						<when test="type == 'T'.toString()">
+							boa_title like '%' || #{keyword} || '%'
+						</when>
+						<when test="type == 'W'.toString()">
+							mem_id like '%' || #{keyword} || '%'
+						</when>
+						<when test="type == 'C'.toString()">
+							boa_content like '%' || #{keyword} || '%'
+						</when>
+						<when test="type == 'A'.toString()">
+							boa_category like '%' || #{keyword} || '%'
+						</when>
+					</choose>
+				</trim>
+			</foreach>
+		</trim>
+	</sql>
+	
+	
+	<select id="getListWithPaging" resultType="com.kmall.domain.BoardVO">
+		<![CDATA[
+		SELECT 
+			RN, boa_bno, boa_category, boa_title, mem_id, boa_content, boa_regdate, boa_updatedate
+		FROM 
+			( 
+        		SELECT /*+INDEX_DESC(board_tbl pk_boa_bno) */ 
+        			ROWNUM RN, boa_bno, boa_category, boa_title, mem_id, boa_content, boa_regdate, boa_updatedate
+        		FROM board_tbl
+        		
+        		where
+        	]]>
+        			<include refid="criteria"></include>
+        	<![CDATA[
+        			ROWNUM <= (#{pageNum} * #{amount}) 
+			)
+		WHERE 
+			RN > ((#{pageNum} - 1) * #{amount})
+			]]>
+	</select>
+	
+	
+	<!-- 조건식 sql 사용 -->
+	<select id="getTotalCount" resultType="int" parameterType="com.kmall.dto.Criteria">
+	
+		select 
+			count(*) 
+		from
+			board_tbl
+		where
+		<include refid="criteria"></include>
+		boa_bno > 0
+	
+	</select>
+
+
+	<select id="get" parameterType="Long" resultType="com.kmall.domain.BoardVO">
+		select 
+			boa_bno, boa_category, boa_title, mem_id, boa_content, boa_regdate, boa_updatedate
+		from
+			board_tbl 
+		where 
+			boa_bno = #{boa_bno}
+	</select>
+	
+	
+	<update id="modify" parameterType="com.kmall.domain.BoardVO">
+	
+		update
+			board_tbl
+		set
+			boa_category = #{boa_category},
+			boa_title = #{boa_title},
+			boa_content = #{boa_content},
+			boa_updatedate = sysdate
+		where
+			boa_bno = #{boa_bno}
+
+	</update>
+	
+	
+    <delete id="delete" parameterType="Long">
+    
+		delete from
+			board_tbl
+		where
+			boa_bno = #{boa_bno}
+	
+	</delete>
+	
+    <delete id="deleteReview" parameterType="Long">
+    
+		delete from
+			boardReview_tbl
+		where
+			boa_bno = #{boa_bno}
+	
+	</delete>
+	
+<!-- <transaction id="delete" rollbackFor="Exception">
+  <delete id="deleteBoard" parameterType="Long">
+    <![CDATA[
+      DELETE FROM board_tbl WHERE boa_bno = #{boa_bno}
+    ]]>
+  </delete>
+
+  <delete id="deleteReview" parameterType="Long">
+    <![CDATA[
+      DELETE FROM boardreview_tbl WHERE boa_bno = #{boa_bno}
+    ]]>
+  </delete>
+</transaction> -->
+	
+</mapper>

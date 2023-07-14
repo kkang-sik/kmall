@@ -1,0 +1,151 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper
+  PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+  "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.kmall.mapper.AdOrderMapper">
+
+	<sql id="period">
+	
+		<if test="sDate != null and !sDate.equals('') and sDate != null and !sDate.equals('')">
+			<![CDATA[
+				ord_regdate >= to_date(#{sDate})
+				and
+				ord_regdate < to_date(#{eDate}) + 1
+				and
+			]]>
+		</if>
+	
+	</sql>
+
+
+
+	<!-- 검색조건 작업 : include로 참조 -->
+	<sql id="criteria">
+		<trim prefix="(" suffix=") AND " prefixOverrides="OR"> <!-- trim태그 sql구문중에  맨 앞에 or가 중복되면 제거  -->
+			<foreach collection="cri.typeArr" item="type">
+				<trim prefix="OR">
+					<choose>
+						<when test="type == 'C'.toString()">
+							ord_code like '%' || #{cri.keyword} || '%'
+						</when>
+						<when test="type == 'I'.toString()">
+							mem_id like '%' || #{cri.keyword} || '%'
+						</when>
+						<when test="type == 'R'.toString()">
+							ord_name like '%' || #{cri.keyword} || '%'
+						</when>
+					</choose>
+				</trim>
+			</foreach>
+		</trim>
+	</sql>
+	
+	
+	
+	<!-- 조건식 sql 사용 -->
+	<select id="orderList" resultType="com.kmall.domain.OrderVO" parameterType="com.kmall.dto.Criteria">
+		<![CDATA[
+			SELECT 
+				RN, ord_code, mem_id, ord_name, ord_price, pay_method, ord_regdate
+			FROM 
+				( 
+	        		select /*+INDEX_DESC(order_tbl PK_ORD_CODE)  */ 
+	        			rownum RN, ord_code, mem_id, ord_name, ord_price, pay_method, ord_regdate
+					from 
+						order_tbl
+	        		where
+	        			
+	        ]]>
+	        		<include refid="period"></include>
+	        		<include refid="criteria"></include>		
+	        <![CDATA[		
+	        		ROWNUM <= (#{cri.pageNum} * #{cri.amount}) 
+	        		
+				)
+			WHERE 
+				RN > ((#{cri.pageNum} - 1) * #{cri.amount})
+		]]>
+	</select>
+	
+	
+	
+		<!-- 조건식 sql 사용 -->
+	<select id="getTotalCount" resultType="int" parameterType="com.kmall.dto.Criteria">
+	
+		select 
+			count(*) 
+		from 
+			order_tbl
+		where 
+			<include refid="period"></include>
+			<include refid="criteria"></include>
+			ord_code > 0
+
+	</select>
+	
+	
+	
+	<select id="orderDetail" resultType="com.kmall.domain.AdOrderDetailVO">
+	
+		select
+			ot.ord_code, ot.pro_num, ot.dt_amount, ot.dt_price, p.pro_name, p.pro_up_folder, p.pro_img
+		from
+			ordertail_tbl ot inner join product_tbl p
+		on
+			ot.pro_num = p.pro_num
+		where
+			ot.ord_code = #{ord_code}
+	
+	</select>
+	
+	
+	
+	<delete id="orderDetailProductDelete">
+	
+		delete
+		from
+			ordertail_tbl
+		where
+			ord_code = #{ord_code}
+		and
+			pro_num = #{pro_num}
+	
+	</delete>
+	
+	
+	
+	<delete id="orderDelete">
+	
+		delete
+		from
+			order_tbl
+		where
+			ord_code = #{ord_code}
+	
+	</delete>
+
+
+
+	<delete id="orderDetailDelete">
+	
+		delete
+		from
+			ordertail_tbl
+		where
+			ord_code = #{ord_code}
+	
+	</delete>
+	
+	
+	
+	<delete id="paymentDelete">
+	
+		delete
+		from
+			payment_tbl
+		where
+			ord_code = #{ord_code}
+	
+	</delete>
+	
+</mapper>
